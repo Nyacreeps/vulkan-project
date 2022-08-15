@@ -1,0 +1,27 @@
+Language: Cpp
+
+BasedOnStyle: Google
+
+AccessModifierOffset: -4
+BreakStringLiterals: true
+ColumnLimit: 100
+CompactNamespaces: false
+ConstructorInitializerIndentWidth: 4
+FixNamespaceComments: true
+ForEachMacros: ['ILIST_FOREACH', 'ILIST_FOREACH_ENTRY']
+IncludeBlocks: Regroup
+IncludeCategories:
+    - Regex: '<.*>'
+      Priority: 1
+    - Regex: '.*'
+      Priority: 2
+IndentWidth: 4
+KeepEmptyLinesAtTheStartOfBlocks: false
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReflowComments: true
+SortIncludes: false
+SpacesBeforeTrailingComments: 1
+TabWidth: 4
+UseTab: Never
+AllowShortFunctionsOnASingleLine: None
