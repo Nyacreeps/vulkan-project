@@ -760,7 +760,7 @@ void VulkanApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDev
 }
 
 void VulkanApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                                     VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                                     VmaAllocationCreateFlags flags, VkBuffer& buffer,
                                      VmaAllocation& bufferAllocation) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -770,6 +770,7 @@ void VulkanApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage
 
     VmaAllocationCreateInfo allocationCreateInfo{};
     allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
     vmaCreateBuffer(allocator, &bufferInfo, &allocationCreateInfo, &buffer, &bufferAllocation,
                     nullptr);
@@ -791,18 +792,41 @@ void VulkanApplication::createVertexBuffer() {
     VkBuffer stagingBuffer;
     VmaAllocation stagingBufferAllocation;
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 stagingBuffer, stagingBufferAllocation);
+                 VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT, stagingBuffer,
+                 stagingBufferAllocation);
 
     void* data;
-    vkMapMemory(device, stagingBufferAllocation->GetMemory(), 0, bufferSize, 0, &data);
+    vmaMapMemory(allocator, stagingBufferAllocation, &data);
     memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferAllocation->GetMemory());
+    vmaUnmapMemory(allocator, stagingBufferAllocation);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferAllocation);
+                 0, vertexBuffer, vertexBufferAllocation);
 
     copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vmaFreeMemory(allocator, stagingBufferAllocation);
+}
+
+void VulkanApplication::createIndexBuffer() {
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingBufferAllocation;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT, stagingBuffer,
+                 stagingBufferAllocation);
+
+    void* data;
+    vmaMapMemory(allocator, stagingBufferAllocation, &data);
+    memcpy(data, indices.data(), (size_t)bufferSize);
+    vmaUnmapMemory(allocator, stagingBufferAllocation);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0,
+                 indexBuffer, indexBufferAllocation);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vmaFreeMemory(allocator, stagingBufferAllocation);
@@ -861,7 +885,9 @@ void VulkanApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -906,6 +932,7 @@ void VulkanApplication::initVulkan() {
     createCommandPools();
     createAllocator();
     createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 

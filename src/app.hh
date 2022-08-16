@@ -34,6 +34,9 @@ public:
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vmaFreeMemory(allocator, vertexBufferAllocation);
 
+        vkDestroyBuffer(device, indexBuffer, nullptr);
+        vmaFreeMemory(allocator, indexBufferAllocation);
+
         vmaDestroyAllocator(allocator);
 
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -165,16 +168,20 @@ private:
     void createCommandPools();
 
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f}}, {{0.5f, -0.5f}}, {{0.5f, 0.5f}}};
+        {{-0.5f, -0.5f}}, {{0.5f, -0.5f}}, {{0.5f, 0.5f}}, {{-0.5f, 0.5f}}};
+    const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
     VmaAllocator allocator;
     VkBuffer vertexBuffer;
     VmaAllocation vertexBufferAllocation;
+    VkBuffer indexBuffer;
+    VmaAllocation indexBufferAllocation;
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags,
                       VkBuffer& buffer, VmaAllocation& bufferAllocation);
     void createAllocator();
     void createVertexBuffer();
+    void createIndexBuffer();
 
     std::vector<VkCommandBuffer> commandBuffers;
     void createCommandBuffers();
