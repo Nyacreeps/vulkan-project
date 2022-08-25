@@ -16,14 +16,14 @@ class VulkanApplication {
 public:
     VulkanApplication(){};
     VulkanApplication(const VulkanApplication& app) {
-        this->appWindow = app.appWindow;
+        this->window = app.window;
         this->windowWidth = app.windowWidth;
         this->windowHeight = app.windowHeight;
     };
     VulkanApplication& operator=(const VulkanApplication& app) {
         if (this == &app) return *this;
-        glfwDestroyWindow(appWindow);
-        appWindow = app.appWindow;
+        glfwDestroyWindow(window);
+        window = app.window;
         windowWidth = app.windowWidth;
         windowHeight = app.windowHeight;
         return *this;
@@ -31,11 +31,24 @@ public:
     ~VulkanApplication() {
         cleanupSwapChain();
 
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+
+        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vmaFreeMemory(allocator, vertexBufferAllocation);
 
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vmaFreeMemory(allocator, indexBufferAllocation);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+            vmaFreeMemory(allocator, uniformBuffersAllocation[i]);
+        }
+
+        vkDestroyImage(device, depthImage, nullptr);
+        vkDestroyImageView(device, depthImageView, nullptr);
+        vmaFreeMemory(allocator, depthImageAllocation);
 
         vmaDestroyAllocator(allocator);
 
@@ -62,7 +75,7 @@ public:
         vkDestroySurfaceKHR(instance, surface, nullptr);
         vkDestroyInstance(instance, nullptr);
 
-        glfwDestroyWindow(appWindow);
+        glfwDestroyWindow(window);
 
         glfwTerminate();
     };
@@ -70,7 +83,7 @@ public:
 
 private:
     // window setup
-    GLFWwindow* appWindow = nullptr;
+    GLFWwindow* window = nullptr;
     uint windowWidth = 800;
     uint windowHeight = 600;
     void initWindow();
@@ -156,6 +169,9 @@ private:
     VkPipelineLayout pipelineLayout;
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
+    VkDescriptorSetLayout descriptorSetLayout;
+    void createDescriptorSetLayout();
+
     VkPipeline graphicsPipeline;
     void createGraphicsPipeline();
 
@@ -167,14 +183,41 @@ private:
     bool poolsSameHandle = false;
     void createCommandPools();
 
+    VkImage depthImage;
+    VmaAllocation depthImageAllocation;
+    VkImageView depthImageView;
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling,
+                                 VkFormatFeatureFlags features);
+    VkFormat findDepthFormat();
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+                     VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
+                     VmaAllocation &imageAllocation);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    void createDepthResources();
+
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f}}, {{0.5f, -0.5f}}, {{0.5f, 0.5f}}, {{-0.5f, 0.5f}}};
-    const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4
+};
     VmaAllocator allocator;
     VkBuffer vertexBuffer;
     VmaAllocation vertexBufferAllocation;
     VkBuffer indexBuffer;
     VmaAllocation indexBufferAllocation;
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VmaAllocation> uniformBuffersAllocation;
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags,
@@ -182,6 +225,12 @@ private:
     void createAllocator();
     void createVertexBuffer();
     void createIndexBuffer();
+    void createUniformBuffers();
+
+    VkDescriptorPool descriptorPool;
+    void createDescriptorPool();
+    std::vector<VkDescriptorSet> descriptorSets;
+    void createDescriptorSets();
 
     std::vector<VkCommandBuffer> commandBuffers;
     void createCommandBuffers();
@@ -201,6 +250,7 @@ public:
     bool framebufferResized = false;
 
 private:
+    void updateUniformBuffer(uint32_t);
     void drawFrame();
 
     void cleanupSwapChain();

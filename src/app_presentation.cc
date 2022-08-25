@@ -5,7 +5,7 @@
 #include <string>
 
 void VulkanApplication::createSurface() {
-    if (glfwCreateWindowSurface(instance, appWindow, nullptr, &surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface!");
     }
 }
@@ -203,7 +203,7 @@ VkExtent2D VulkanApplication::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& c
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize(appWindow, &width, &height);
+        glfwGetFramebufferSize(window, &width, &height);
 
         VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 

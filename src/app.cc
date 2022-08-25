@@ -16,36 +16,26 @@ void VulkanApplication::initVulkan() {
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+    createAllocator();
     createSwapChain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
+    createDepthResources();
     createFramebuffers();
     createCommandPools();
-    createAllocator();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
-
-    /* uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> extensions(extensionCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-
-    std::cout << "available extensions:\n";
-    for (const auto& extension : extensions) {
-        std::cout << '\t' << extension.extensionName << '\n';
-    }
-
-    VkPhysicalDeviceProperties physicalDeviceProps{};
-
-    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProps);
-    std::cout << "physical device: " << physicalDeviceProps.deviceName << '\n'; */
 }
 
 void VulkanApplication::mainLoop() {
-    while (!glfwWindowShouldClose(appWindow)) {
+    while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         drawFrame();
     }
