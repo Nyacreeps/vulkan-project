@@ -11,23 +11,11 @@
 #include <optional>
 
 #include "vertex.hh"
+#include "scene.hh"
 
 class VulkanApplication {
 public:
     VulkanApplication(){};
-    VulkanApplication(const VulkanApplication& app) {
-        this->window = app.window;
-        this->windowWidth = app.windowWidth;
-        this->windowHeight = app.windowHeight;
-    };
-    VulkanApplication& operator=(const VulkanApplication& app) {
-        if (this == &app) return *this;
-        glfwDestroyWindow(window);
-        window = app.window;
-        windowWidth = app.windowWidth;
-        windowHeight = app.windowHeight;
-        return *this;
-    };
     ~VulkanApplication() {
         cleanupSwapChain();
 
@@ -45,10 +33,6 @@ public:
             vkDestroyBuffer(device, uniformBuffers[i], nullptr);
             vmaFreeMemory(allocator, uniformBuffersAllocation[i]);
         }
-
-        vkDestroyImage(device, depthImage, nullptr);
-        vkDestroyImageView(device, depthImageView, nullptr);
-        vmaFreeMemory(allocator, depthImageAllocation);
 
         vmaDestroyAllocator(allocator);
 
@@ -191,26 +175,16 @@ private:
     VkFormat findDepthFormat();
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                      VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
-                     VmaAllocation &imageAllocation);
+                     VmaAllocation& imageAllocation);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void createDepthResources();
 
-    const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+    const Cube cube = Cube({0.0f, 0.0f, 0.0f}, 1.0f);/* 
+    const std::vector<Vertex> vertices = {{{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                                          {{0.0f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                                          {{0.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}};
 
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-};
-
-const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-};
+    const std::vector<uint16_t> indices = {0, 2, 1}; */
     VmaAllocator allocator;
     VkBuffer vertexBuffer;
     VmaAllocation vertexBufferAllocation;
@@ -226,6 +200,7 @@ const std::vector<uint16_t> indices = {
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();
+    void updateUniformBuffers();
 
     VkDescriptorPool descriptorPool;
     void createDescriptorPool();
@@ -250,7 +225,12 @@ public:
     bool framebufferResized = false;
 
 private:
-    void updateUniformBuffer(uint32_t);
+    Scene* scene = nullptr;
+public:
+    void setScene(Scene& scene);
+private:
+    void registerInputFunctions();
+    void inputCamera(float deltaTime);
     void drawFrame();
 
     void cleanupSwapChain();

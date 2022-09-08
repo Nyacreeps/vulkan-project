@@ -1,5 +1,11 @@
 #include "app.hh"
 
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include "scene.hh"
+
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
@@ -80,7 +86,8 @@ void VulkanApplication::createAllocator() {
 }
 
 void VulkanApplication::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    auto vert = cube.loadVertices().first;
+    VkDeviceSize bufferSize = sizeof(vert[0]) * vert.size();
 
     VkBuffer stagingBuffer;
     VmaAllocation stagingBufferAllocation;
@@ -90,7 +97,7 @@ void VulkanApplication::createVertexBuffer() {
 
     void* data;
     vmaMapMemory(allocator, stagingBufferAllocation, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
+    memcpy(data, vert.data(), (size_t)bufferSize);
     vmaUnmapMemory(allocator, stagingBufferAllocation);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -103,7 +110,8 @@ void VulkanApplication::createVertexBuffer() {
 }
 
 void VulkanApplication::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    auto index = cube.loadVertices().second;
+    VkDeviceSize bufferSize = sizeof(index[0]) * index.size();
 
     VkBuffer stagingBuffer;
     VmaAllocation stagingBufferAllocation;
@@ -113,7 +121,7 @@ void VulkanApplication::createIndexBuffer() {
 
     void* data;
     vmaMapMemory(allocator, stagingBufferAllocation, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
+    memcpy(data, index.data(), (size_t)bufferSize);
     vmaUnmapMemory(allocator, stagingBufferAllocation);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0,
@@ -136,32 +144,32 @@ void VulkanApplication::createUniformBuffers() {
                      VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT, uniformBuffers[i],
                      uniformBuffersAllocation[i]);
     }
-}
-
-#define GLM_FORCE_RADIANS
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <chrono>
-
-void VulkanApplication::updateUniformBuffer(uint32_t currentImage) {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time =
-        std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model =
-        glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f),
-                                swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    ubo.model = glm::mat4(1.0f);
+    ubo.view = scene->camera.getViewMatrix();
+    ubo.proj =
+        scene->camera.getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
 
-    void* data;
-    vmaMapMemory(allocator, uniformBuffersAllocation[currentImage], &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vmaUnmapMemory(allocator, uniformBuffersAllocation[currentImage]);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        void* data;
+        vmaMapMemory(allocator, uniformBuffersAllocation[i], &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(allocator, uniformBuffersAllocation[i]);
+    }
+}
+
+void VulkanApplication::updateUniformBuffers() {
+    UniformBufferObject ubo{};
+    ubo.model = glm::mat4(1.0f);
+    ubo.view = scene->camera.getViewMatrix();
+    ubo.proj =
+        scene->camera.getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        void* data;
+        vmaMapMemory(allocator, uniformBuffersAllocation[i], &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(allocator, uniformBuffersAllocation[i]);
+    }
 }

@@ -3,8 +3,8 @@ LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 CC = src/main.cc src/app.cc src/app_window.cc src/app_debug.cc \
 	 src/app_presentation.cc src/app_graphics_pipeline.cc src/app_draw.cc \
 	 src/app_buffers.cc src/app_descriptors.cc src/app_depth_buffering.cc \
-	 src/app_image.cc
-HH = src/app.hh src/vertex.hh src/scene.hh
+	 src/app_image.cc src/camera.cc src/app_inputs.cc
+HH = src/app.hh src/vertex.hh src/scene.hh src/camera.hh
 INCLUDE_DIRS = src/
 
 vulkantest: $(CC) $(HH)

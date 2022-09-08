@@ -23,24 +23,12 @@ void VulkanApplication::createImage(uint32_t width, uint32_t height, VkFormat fo
         throw std::runtime_error("failed to create image!");
     }
 
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-    /* VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate image memory!");
-    }
-
-    vkBindImageMemory(device, image, imageMemory, 0); */
-
     VmaAllocationCreateInfo createInfo{};
 
-    vmaAllocateMemoryForImage(allocator, image, &createInfo, &depthImageAllocation, nullptr);
-    vmaBindImageMemory(allocator, depthImageAllocation, image);
+    if (vmaAllocateMemoryForImage(allocator, image, &createInfo, &depthImageAllocation, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("failed to allocate memory for image");
+    if (vmaBindImageMemory(allocator, depthImageAllocation, image) != VK_SUCCESS)
+        throw std::runtime_error("failed to bind image allocation memory");
 }
 
 VkImageView VulkanApplication::createImageView(VkImage image, VkFormat format,

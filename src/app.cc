@@ -4,6 +4,9 @@
 #include <set>
 #include <algorithm>
 
+extern int KEYSTATES[512];
+extern bool KEY_INPUT_DETECTED;
+
 void VulkanApplication::run() {
     initWindow();
     initVulkan();
@@ -32,12 +35,20 @@ void VulkanApplication::initVulkan() {
     createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
+    registerInputFunctions();
 }
 
 void VulkanApplication::mainLoop() {
+    
+    double lastFrame = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
+        double currentFrame = glfwGetTime();
+        float deltaTime = (float)(currentFrame - lastFrame);
+        if (deltaTime < (1.0f / 30.0f)) continue;
         glfwPollEvents();
+        inputCamera(deltaTime);
         drawFrame();
+        lastFrame = currentFrame;
     }
     vkDeviceWaitIdle(device);
 }
