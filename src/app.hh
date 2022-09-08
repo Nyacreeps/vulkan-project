@@ -72,6 +72,11 @@ private:
     uint windowHeight = 600;
     void initWindow();
 
+    VkSurfaceKHR surface;
+    void createSurface();
+
+
+
     // instance and validation layers setup
     VkInstance instance = nullptr; // link between the application and the vulkan library
 #ifdef NDEBUG
@@ -99,8 +104,7 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger;
     void setupDebugMessenger();
 
-    VkSurfaceKHR surface;
-    void createSurface();
+
 
     // physical device setup
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -120,6 +124,8 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice device);
     void pickPhysicalDevice();
 
+
+
     // logical device and queue setup
     VkDevice device;
     VkQueue presentQueue;
@@ -127,6 +133,9 @@ private:
     VkQueue transferQueue;
     void createLogicalDevice();
 
+
+
+    // swap chain and pipeline setup
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities;
         std::vector<VkSurfaceFormatKHR> formats;
@@ -167,6 +176,9 @@ private:
     bool poolsSameHandle = false;
     void createCommandPools();
 
+
+
+    // depth map setup
     VkImage depthImage;
     VmaAllocation depthImageAllocation;
     VkImageView depthImageView;
@@ -179,12 +191,10 @@ private:
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void createDepthResources();
 
-    const Cube cube = Cube({0.0f, 0.0f, 0.0f}, 1.0f);/* 
-    const std::vector<Vertex> vertices = {{{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                                          {{0.0f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                                          {{0.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}};
 
-    const std::vector<uint16_t> indices = {0, 2, 1}; */
+
+    // Buffers allocation and update
+    const Cube cube = Cube({0.0f, 0.0f, 0.0f}, 1.0f);
     VmaAllocator allocator;
     VkBuffer vertexBuffer;
     VmaAllocation vertexBufferAllocation;
@@ -216,18 +226,17 @@ private:
     std::vector<VkFence> inFlightFences;
     void createSyncObjects();
 
-    void initVulkan();
-
     const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t currentFrame = 0;
 
 public:
     bool framebufferResized = false;
-
 private:
     Scene* scene = nullptr;
+
 public:
     void setScene(Scene& scene);
+
 private:
     void registerInputFunctions();
     void inputCamera(float deltaTime);
@@ -236,5 +245,6 @@ private:
     void cleanupSwapChain();
     void recreateSwapChain();
 
+    void initVulkan();
     void mainLoop();
 };
