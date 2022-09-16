@@ -9,6 +9,8 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+VkDeviceSize BUFFER_SIZE = UINT16_MAX;
+
 uint32_t VulkanApplication::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -31,13 +33,15 @@ void VulkanApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDev
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+    if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS)
+        throw std::runtime_error("failed to allocate command buffer for buffer copy");
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+        throw std::runtime_error("failed to begin recording copy command buffer");
 
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = 0; // Optional
@@ -45,14 +49,16 @@ void VulkanApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDev
     copyRegion.size = size;
     vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-    vkEndCommandBuffer(commandBuffer);
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+        throw std::runtime_error("failed to end recording copy command buffer");
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    if (vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+        throw std::runtime_error("failed to submit copy command buffer to queue");
     vkQueueWaitIdle(transferQueue);
 
     vkFreeCommandBuffers(device, transferCommandPool, 1, &commandBuffer);
@@ -85,52 +91,20 @@ void VulkanApplication::createAllocator() {
     vmaCreateAllocator(&allocatorCreateInfo, &allocator);
 }
 
-void VulkanApplication::createVertexBuffer() {
-    auto vert = cube.loadVertices().first;
-    VkDeviceSize bufferSize = sizeof(vert[0]) * vert.size();
-
-    VkBuffer stagingBuffer;
-    VmaAllocation stagingBufferAllocation;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+void VulkanApplication::createStagingBuffer() {
+    createBuffer(BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                  VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT, stagingBuffer,
                  stagingBufferAllocation);
+}
 
-    void* data;
-    vmaMapMemory(allocator, stagingBufferAllocation, &data);
-    memcpy(data, vert.data(), (size_t)bufferSize);
-    vmaUnmapMemory(allocator, stagingBufferAllocation);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+void VulkanApplication::createVertexBuffer() {
+    createBuffer(BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                  0, vertexBuffer, vertexBufferAllocation);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vmaFreeMemory(allocator, stagingBufferAllocation);
 }
 
 void VulkanApplication::createIndexBuffer() {
-    auto index = cube.loadVertices().second;
-    VkDeviceSize bufferSize = sizeof(index[0]) * index.size();
-
-    VkBuffer stagingBuffer;
-    VmaAllocation stagingBufferAllocation;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT, stagingBuffer,
-                 stagingBufferAllocation);
-
-    void* data;
-    vmaMapMemory(allocator, stagingBufferAllocation, &data);
-    memcpy(data, index.data(), (size_t)bufferSize);
-    vmaUnmapMemory(allocator, stagingBufferAllocation);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0,
-                 indexBuffer, indexBufferAllocation);
-
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vmaFreeMemory(allocator, stagingBufferAllocation);
+    createBuffer(BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                 0, indexBuffer, indexBufferAllocation);
 }
 
 void VulkanApplication::createUniformBuffers() {
@@ -147,9 +121,9 @@ void VulkanApplication::createUniformBuffers() {
 
     UniformBufferObject ubo{};
     ubo.model = glm::mat4(1.0f);
-    ubo.view = scene->camera.getViewMatrix();
+    ubo.view = pScene->pCamera->getViewMatrix();
     ubo.proj =
-        scene->camera.getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
+        pScene->pCamera->getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         void* data;
@@ -159,17 +133,41 @@ void VulkanApplication::createUniformBuffers() {
     }
 }
 
-void VulkanApplication::updateUniformBuffers() {
+void VulkanApplication::updateUniformBuffer(uint32_t currentImage) {
     UniformBufferObject ubo{};
     ubo.model = glm::mat4(1.0f);
-    ubo.view = scene->camera.getViewMatrix();
+    ubo.view = pScene->pCamera->getViewMatrix();
     ubo.proj =
-        scene->camera.getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
+        pScene->pCamera->getProjectionMatrix(swapChainExtent.width / (float)swapChainExtent.height);
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        void* data;
-        vmaMapMemory(allocator, uniformBuffersAllocation[i], &data);
-        memcpy(data, &ubo, sizeof(ubo));
-        vmaUnmapMemory(allocator, uniformBuffersAllocation[i]);
-    }
+    void* data;
+    vmaMapMemory(allocator, uniformBuffersAllocation[currentImage], &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vmaUnmapMemory(allocator, uniformBuffersAllocation[currentImage]);
+}
+
+void VulkanApplication::updateVertexBuffer() {
+    auto vert = pScene->loadAllVertices().first;
+    VkDeviceSize bufferSize = sizeof(vert[0]) * vert.size();
+
+    void* data;
+    if (vmaMapMemory(allocator, stagingBufferAllocation, &data) != VK_SUCCESS)
+        throw std::runtime_error("failed to map allocation memory");
+    memcpy(data, vert.data(), (size_t)bufferSize);
+    vmaUnmapMemory(allocator, stagingBufferAllocation);
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+}
+
+void VulkanApplication::updateIndexBuffer() {
+    auto index = pScene->pVertexData->second;
+    VkDeviceSize bufferSize = sizeof(index[0]) * index.size();
+
+    void* data;
+    if (vmaMapMemory(allocator, stagingBufferAllocation, &data) != VK_SUCCESS)
+        throw std::runtime_error("failed to map allocation memory");
+    memcpy(data, index.data(), (size_t)bufferSize);
+    vmaUnmapMemory(allocator, stagingBufferAllocation);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 }

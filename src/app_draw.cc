@@ -1,5 +1,9 @@
 #include "app.hh"
 
+#include <cstdlib>
+
+int VERTEX_UPDATE = 0;
+
 void VulkanApplication::createFramebuffers() {
     swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -98,6 +102,7 @@ void VulkanApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VkBuffer vertexBuffers[] = {vertexBuffer};
+
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
@@ -106,8 +111,7 @@ void VulkanApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                             &descriptorSets[currentFrame], 0, nullptr);
 
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(cube.loadVertices().second.size()), 1, 0,
-                     0, 0);
+    vkCmdDrawIndexed(commandBuffer, pScene->indexBufferSize, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -186,7 +190,12 @@ void VulkanApplication::drawFrame() {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
-    updateUniformBuffers();
+    updateUniformBuffer(currentFrame);
+    if (VERTEX_UPDATE) {
+        updateVertexBuffer();
+        updateIndexBuffer();
+        VERTEX_UPDATE = 0;
+    }
 
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 

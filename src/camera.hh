@@ -14,7 +14,7 @@ typedef enum CAM_MOVE_DIR {
 } CAM_MOVE_DIR;
 
 class Camera {
-private:
+public:
     glm::vec3 eye;
     glm::vec3 center;
     const glm::vec3 axis;
@@ -24,7 +24,6 @@ private:
     float farClipDist;
     glm::vec3 getFront(void);
 
-public:
     Camera(const glm::vec3& camEye, const glm::vec3& camCenter, const glm::vec3& camAxis,
            float camFov, float camNearClipDist, float camFarClipDist)
         : eye(camEye),

@@ -23,6 +23,9 @@ public:
 
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vmaFreeMemory(allocator, stagingBufferAllocation);
+
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vmaFreeMemory(allocator, vertexBufferAllocation);
 
@@ -75,8 +78,6 @@ private:
     VkSurfaceKHR surface;
     void createSurface();
 
-
-
     // instance and validation layers setup
     VkInstance instance = nullptr; // link between the application and the vulkan library
 #ifdef NDEBUG
@@ -104,8 +105,6 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger;
     void setupDebugMessenger();
 
-
-
     // physical device setup
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     struct QueueFamilyIndices {
@@ -124,16 +123,12 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice device);
     void pickPhysicalDevice();
 
-
-
     // logical device and queue setup
     VkDevice device;
     VkQueue presentQueue;
     VkQueue graphicsQueue;
     VkQueue transferQueue;
     void createLogicalDevice();
-
-
 
     // swap chain and pipeline setup
     struct SwapChainSupportDetails {
@@ -176,8 +171,6 @@ private:
     bool poolsSameHandle = false;
     void createCommandPools();
 
-
-
     // depth map setup
     VkImage depthImage;
     VmaAllocation depthImageAllocation;
@@ -191,11 +184,10 @@ private:
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void createDepthResources();
 
-
-
     // Buffers allocation and update
-    const Cube cube = Cube({0.0f, 0.0f, 0.0f}, 1.0f);
     VmaAllocator allocator;
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingBufferAllocation;
     VkBuffer vertexBuffer;
     VmaAllocation vertexBufferAllocation;
     VkBuffer indexBuffer;
@@ -207,10 +199,13 @@ private:
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags flags,
                       VkBuffer& buffer, VmaAllocation& bufferAllocation);
     void createAllocator();
+    void createStagingBuffer();
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();
-    void updateUniformBuffers();
+    void updateUniformBuffer(uint32_t currentImage);
+    void updateVertexBuffer();
+    void updateIndexBuffer();
 
     VkDescriptorPool descriptorPool;
     void createDescriptorPool();
@@ -231,11 +226,12 @@ private:
 
 public:
     bool framebufferResized = false;
+
 private:
-    Scene* scene = nullptr;
+    std::shared_ptr<Scene> pScene = nullptr;
 
 public:
-    void setScene(Scene& scene);
+    void setScene(std::shared_ptr<Scene> scene);
 
 private:
     void registerInputFunctions();
